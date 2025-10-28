@@ -1,0 +1,8 @@
+tic-tac-toe
+├── src
+│   ├── main
+│   └── java
+│        ├── TicTacToe.java
+│        ├── TicTacToe_NxN.java
+├── pom.xml
+└── README.md
