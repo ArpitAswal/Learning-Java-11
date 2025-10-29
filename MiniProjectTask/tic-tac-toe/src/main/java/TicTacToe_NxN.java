@@ -43,6 +43,11 @@ public class TicTacToe_NxN {
     // Scanner for input
     private Scanner scanner;
 
+    // Track previous sessions
+    private static String savedPlayer1Name = "";
+    private static String savedPlayer2Name = "";
+    private static final String SAVE_FILE = "tictactoe_save.txt";
+
     /**
      * Constructor - Initializes the game
      */
@@ -67,17 +72,27 @@ public class TicTacToe_NxN {
         System.out.println("║     WELCOME TO NxN TICTACTOE GAME     ║");
         System.out.println("╔════════════════════════════════════════╗\n");
 
+        // Check if there's a saved game to resume
+        boolean resumedGame = checkAndResumeGame();
+
         boolean playAgain = true;
 
         while (playAgain) {
-            // Get player names
-            getPlayerNames();
 
-            // Get grid size
-            gridSize = getGridSize();
+            // NEW: Skip player name entry if we just resumed a game
+            if (!resumedGame) {
+                // Get player names
+                getPlayerNames();
 
-            // Initialize the game
-            initializeGame();
+                // Get grid size
+                gridSize = getGridSize();
+
+                // Initialize the game
+                initializeGame();
+            } else {
+                // Reset the flag after first iteration
+                resumedGame = false;
+            }
 
             // Play the game
             playGame();
@@ -88,8 +103,208 @@ public class TicTacToe_NxN {
 
         // Show final statistics
         displayFinalStatistics();
+
+        // Save final statistics when exiting
+        saveFinalStatistics();
+
         System.out.println("\nThank you for playing! Goodbye! 👋");
         scanner.close();
+    }
+
+    /**
+     * NEW METHOD: Check if there's a saved game and ask to resume
+     * Returns true if game was resumed, false otherwise
+     */
+    private boolean checkAndResumeGame() {
+        File saveFile = new File(SAVE_FILE);
+
+        // If no save file exists, load statistics and start fresh
+        if (!saveFile.exists()) {
+            return false;
+        }
+
+        try {
+            // Try to load the saved game
+            SavedGameData savedData = loadGameState();
+
+            if (savedData == null) {
+                return false; // Corrupted file or reading error
+            }
+
+            // Load statistics (always load, regardless of game state)
+            player1Wins = savedData.player1Wins;
+            player2Wins = savedData.player2Wins;
+            draws = savedData.draws;
+            totalGames = savedData.totalGames;
+            savedPlayer1Name = savedData.player1Name;
+            savedPlayer2Name = savedData.player2Name;
+
+            // Check if the game was in progress (not finished)
+            if (savedData.gameActive && !savedData.gameWon) {
+                // Game was interrupted - ask to resume
+                System.out.println("\n🔄 SAVED GAME DETECTED!");
+                System.out.println("═══════════════════════════════════════════");
+                System.out.println("A game was in progress:");
+                System.out.println("  Players: " + savedData.player1Name + " (X) vs " + savedData.player2Name + " (O)");
+                System.out.println("  Grid Size: " + savedData.gridSize + "x" + savedData.gridSize);
+                System.out.println("  Current Turn: "
+                        + (savedData.currentPlayer.equals("X") ? savedData.player1Name : savedData.player2Name) + " ("
+                        + savedData.currentPlayer + ")");
+
+                // Calculate and display remaining time
+                long remainingTime = GAME_DURATION - savedData.elapsedTime;
+                if (remainingTime < 0)
+                    remainingTime = 0;
+                long minutes = remainingTime / 60000;
+                long seconds = (remainingTime % 60000) / 1000;
+                System.out.printf("  Time Remaining: %02d:%02d\n", minutes, seconds);
+                System.out.println("═══════════════════════════════════════════");
+
+                // Ask user if they want to resume
+                System.out.print("\nDo you want to RESUME this game? (yes/no): ");
+                String response = scanner.nextLine().trim().toLowerCase();
+
+                if (response.equals("yes") || response.equals("y")) {
+                    // Restore the game state
+                    restoreGameState(savedData);
+                    System.out.println("\n✅ Game Resumed! Continue playing...\n");
+                    return true; // Game was resumed
+                } else {
+                    System.out.println("\n🆕 Starting a new game...\n");
+                    // Keep statistics but start new game
+                    return false;
+                }
+            } else {
+                // Game was finished - just load statistics
+                System.out.println("\n📊 Loaded previous statistics:");
+                displayStatistics();
+                System.out.println();
+                return false;
+            }
+
+        } catch (Exception e) {
+            System.out.println("⚠️  Error reading save file. Starting fresh.\n");
+            return false;
+        }
+    }
+
+    /**
+     * Load game state from file
+     * Returns SavedGameData object or null if error
+     */
+    private SavedGameData loadGameState() {
+        try {
+            BufferedReader reader = new BufferedReader(new FileReader(SAVE_FILE));
+            SavedGameData data = new SavedGameData();
+
+            String line;
+            boolean readingBoard = false;
+            int boardRow = 0;
+
+            while ((line = reader.readLine()) != null) {
+                if (line.equals("BOARD_START")) {
+                    readingBoard = true;
+                    data.board = new String[data.gridSize][data.gridSize];
+                    boardRow = 0;
+                    continue;
+                } else if (line.equals("BOARD_END")) {
+                    readingBoard = false;
+                    continue;
+                }
+
+                if (readingBoard) {
+                    // Read board row
+                    for (int j = 0; j < data.gridSize; j++) {
+                        data.board[boardRow][j] = line.split(" ")[j];
+                    }
+                    boardRow++;
+                } else {
+                    // Parse key-value pairs
+                    String[] parts = line.split(":", 2);
+                    if (parts.length == 2) {
+                        String key = parts[0].trim();
+                        String value = parts[1].trim();
+
+                        switch (key) {
+                            case "GRID_SIZE":
+                                data.gridSize = Integer.parseInt(value);
+                                break;
+                            case "PLAYER1":
+                                data.player1Name = value;
+                                break;
+                            case "PLAYER2":
+                                data.player2Name = value;
+                                break;
+                            case "CURRENT_PLAYER":
+                                data.currentPlayer = "" + value.charAt(0);
+                                break;
+                            case "GAME_ACTIVE":
+                                data.gameActive = Boolean.parseBoolean(value);
+                                break;
+                            case "GAME_WON":
+                                data.gameWon = Boolean.parseBoolean(value);
+                                break;
+                            case "ELAPSED_TIME":
+                                data.elapsedTime = Long.parseLong(value);
+                                break;
+                            case "PLAYER1_PAUSE_COUNT":
+                                data.player1PauseCount = Integer.parseInt(value);
+                                break;
+                            case "PLAYER2_PAUSE_COUNT":
+                                data.player2PauseCount = Integer.parseInt(value);
+                                break;
+                            case "PLAYER1_WINS":
+                                data.player1Wins = Integer.parseInt(value);
+                                break;
+                            case "PLAYER2_WINS":
+                                data.player2Wins = Integer.parseInt(value);
+                                break;
+                            case "DRAWS":
+                                data.draws = Integer.parseInt(value);
+                                break;
+                            case "TOTAL_GAMES":
+                                data.totalGames = Integer.parseInt(value);
+                                break;
+                        }
+                    }
+                }
+            }
+
+            reader.close();
+            return data;
+
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * Restore game state from SavedGameData
+     */
+    private void restoreGameState(SavedGameData data) {
+        // Restore board
+        this.board = data.board;
+        this.gridSize = data.gridSize;
+
+        // Restore player info
+        this.player1Name = data.player1Name;
+        this.player2Name = data.player2Name;
+        this.currentPlayer = data.currentPlayer;
+
+        // Restore game state
+        this.gameActive = true; // Set to true to continue playing
+        this.gamePaused = false;
+        this.gameWon = false;
+
+        // Restore timer - calculate new start time based on elapsed time
+        // This makes the timer continue from where it left off
+        this.startTime = System.currentTimeMillis() - data.elapsedTime;
+        this.totalPausedDuration = 0;
+
+        // NEW: Reset pause counts (as per requirement - resume doesn't count as a
+        // pause)
+        this.player1PauseCount = 0;
+        this.player2PauseCount = 0;
     }
 
     /**
@@ -191,7 +406,7 @@ public class TicTacToe_NxN {
             displayTimer();
 
             // Get current player name
-            String currentPlayerName = (currentPlayer == "X") ? player1Name : player2Name;
+            String currentPlayerName = (currentPlayer.equals("X")) ? player1Name : player2Name;
 
             // Show current turn
             System.out.println("\n" + currentPlayerName + "'s turn (" + currentPlayer + ")");
@@ -326,11 +541,11 @@ public class TicTacToe_NxN {
             // Check for win
             if (checkWin(row, col)) {
                 displayBoard();
-                String winnerName = (currentPlayer == "X") ? player1Name : player2Name;
+                String winnerName = (currentPlayer.equals("X")) ? player1Name : player2Name;
                 System.out.println("\n🎉 CONGRATULATIONS! " + winnerName + " (" + currentPlayer + ") WINS! 🎉");
 
                 // Update statistics
-                if (currentPlayer == "X") {
+                if (currentPlayer.equals("X")) {
                     player1Wins++;
                 } else {
                     player2Wins++;
@@ -357,7 +572,7 @@ public class TicTacToe_NxN {
             }
 
             // Switch player
-            currentPlayer = (currentPlayer == "X") ? "O" : "X";
+            currentPlayer = (currentPlayer.equals("X")) ? "O" : "X";
 
         } catch (NumberFormatException e) {
             System.out.println("❌ Invalid input! Please enter numbers only (e.g., 0,0)");
@@ -374,8 +589,8 @@ public class TicTacToe_NxN {
         }
 
         // Check if current player can pause
-        int currentPauseCount = (currentPlayer == "X") ? player1PauseCount : player2PauseCount;
-        String currentPlayerName = (currentPlayer == "X") ? player1Name : player2Name;
+        int currentPauseCount = (currentPlayer.equals("X")) ? player1PauseCount : player2PauseCount;
+        String currentPlayerName = (currentPlayer.equals("X")) ? player1Name : player2Name;
 
         if (currentPauseCount >= MAX_PAUSE_PER_PLAYER) {
             System.out.println("❌ " + currentPlayerName + " has already used their pause! You cannot pause again.");
@@ -387,7 +602,7 @@ public class TicTacToe_NxN {
         pausedTime = System.currentTimeMillis();
 
         // Increment pause count
-        if (currentPlayer == "X") {
+        if (currentPlayer.equals("X")) {
             player1PauseCount++;
         } else {
             player2PauseCount++;
@@ -487,13 +702,13 @@ public class TicTacToe_NxN {
      */
     private boolean checkLine(int startRow, int startCol, int rowInc, int colInc) {
         String first = board[startRow][startCol];
-        if (first != "X" && first != "O")
+        if (!first.equals("X") && !first.equals("O"))
             return false;
 
         for (int i = 1; i < gridSize; i++) {
             int r = startRow + i * rowInc;
             int c = startCol + i * colInc;
-            if (board[r][c] != first) {
+            if (!board[r][c].equals(first)) {
                 return false;
             }
         }
@@ -506,7 +721,7 @@ public class TicTacToe_NxN {
     private boolean isBoardFull() {
         for (int i = 0; i < gridSize; i++) {
             for (int j = 0; j < gridSize; j++) {
-                if (board[i][j] != "X" && board[i][j] != "O") {
+                if (!board[i][j].equals("X") && !board[i][j].equals("O")) {
                     return false;
                 }
             }
@@ -520,8 +735,13 @@ public class TicTacToe_NxN {
     private void displayStatistics() {
         System.out.println("\n╔════════════════ STATISTICS ════════════════╗");
         System.out.println("  Total Games Played: " + totalGames);
-        System.out.println("  " + player1Name + " (X) Wins: " + player1Wins);
-        System.out.println("  " + player2Name + " (O) Wins: " + player2Wins);
+
+        // Use saved names if available for display
+        String p1Display = savedPlayer1Name.isEmpty() ? player1Name : savedPlayer1Name;
+        String p2Display = savedPlayer2Name.isEmpty() ? player2Name : savedPlayer2Name;
+
+        System.out.println("  " + p1Display + " (X) Wins: " + player1Wins);
+        System.out.println("  " + p2Display + " (O) Wins: " + player2Wins);
         System.out.println("  Draws: " + draws);
         System.out.println("╚════════════════════════════════════════════╝");
     }
@@ -532,27 +752,32 @@ public class TicTacToe_NxN {
     private void displayFinalStatistics() {
         System.out.println("\n╔══════════════ FINAL STATISTICS ═══════════════╗");
         System.out.println("  Total Games Played: " + totalGames);
-        System.out.println("  " + player1Name + " (X) Wins: " + player1Wins);
-        System.out.println("  " + player2Name + " (O) Wins: " + player2Wins);
+
+        // Use saved names if available for display
+        String p1Display = savedPlayer1Name.isEmpty() ? player1Name : savedPlayer1Name;
+        String p2Display = savedPlayer2Name.isEmpty() ? player2Name : savedPlayer2Name;
+
+        System.out.println("  " + p1Display + " (X) Wins: " + player1Wins);
+        System.out.println("  " + p2Display + " (O) Wins: " + player2Wins);
         System.out.println("  Draws: " + draws);
 
         // Calculate win percentages
         if (totalGames > 0) {
             double p1WinRate = (player1Wins * 100.0) / totalGames;
             double p2WinRate = (player2Wins * 100.0) / totalGames;
-            System.out.printf("  %s Win Rate: %.1f%%\n", player1Name, p1WinRate);
-            System.out.printf("  %s Win Rate: %.1f%%\n", player2Name, p2WinRate);
+            System.out.printf("  %s Win Rate: %.1f%%\n", p1Display, p1WinRate);
+            System.out.printf("  %s Win Rate: %.1f%%\n", p2Display, p2WinRate);
         }
         System.out.println("╚═══════════════════════════════════════════════╝");
     }
 
     /**
-     * Save current game state to a file
-     * This allows the game to be reviewed while window is open
+     * MODIFIED: Save current game state to a file
+     * Now also saves statistics and pause counts
      */
     private void saveGameState() {
         try {
-            PrintWriter writer = new PrintWriter(new FileWriter("tictactoe_save.txt"));
+            PrintWriter writer = new PrintWriter(new FileWriter(SAVE_FILE));
 
             // Save game configuration
             writer.println("GRID_SIZE:" + gridSize);
@@ -564,8 +789,9 @@ public class TicTacToe_NxN {
             writer.println("BOARD_START");
             for (int i = 0; i < gridSize; i++) {
                 for (int j = 0; j < gridSize; j++) {
-                    writer.print(" " + board[i][j]);
+                    writer.print(board[i][j] + " ");
                 }
+                System.out.println();
                 writer.println();
             }
             writer.println("BOARD_END");
@@ -577,9 +803,65 @@ public class TicTacToe_NxN {
             // Save timer state
             writer.println("ELAPSED_TIME:" + getElapsedTime());
 
+            // Save pause counts
+            writer.println("PLAYER1_PAUSE_COUNT:" + player1PauseCount);
+            writer.println("PLAYER2_PAUSE_COUNT:" + player2PauseCount);
+
+            // Save statistics
+            writer.println("PLAYER1_WINS:" + player1Wins);
+            writer.println("PLAYER2_WINS:" + player2Wins);
+            writer.println("DRAWS:" + draws);
+            writer.println("TOTAL_GAMES:" + totalGames);
+
             writer.close();
         } catch (IOException e) {
             // Silently fail - save is optional feature
+        }
+    }
+
+    /**
+     * Save final statistics when game exits
+     * This ensures statistics are preserved even if no game is in progress
+     */
+    private void saveFinalStatistics() {
+        try {
+            PrintWriter writer = new PrintWriter(new FileWriter(SAVE_FILE));
+
+            // Save minimal data - just statistics and player names
+            writer.println("GRID_SIZE:" + gridSize); // Default value
+            writer.println("PLAYER1:" + (savedPlayer1Name.isEmpty() ? player1Name : savedPlayer1Name));
+            writer.println("PLAYER2:" + (savedPlayer2Name.isEmpty() ? player2Name : savedPlayer2Name));
+            writer.println("CURRENT_PLAYER: " + currentPlayer);
+
+            // Empty board (no game in progress)
+            writer.println("BOARD_START");
+            for (int i = 0; i < gridSize; i++) {
+                for (int j = 0; j < gridSize; j++) {
+                    writer.print(board[i][j] + " ");
+                }
+                writer.println();
+            }
+            writer.println("BOARD_END");
+
+            // Save final statistics
+            writer.println("PLAYER1_WINS:" + player1Wins);
+            writer.println("PLAYER2_WINS:" + player2Wins);
+            writer.println("DRAWS:" + draws);
+            writer.println("TOTAL_GAMES:" + totalGames);
+
+            writer.println("GAME_ACTIVE:" + gameActive);
+            writer.println("GAME_WON:" + gameWon);
+
+            // Save timer state
+            writer.println("ELAPSED_TIME:" + getElapsedTime());
+
+            // Save pause counts
+            writer.println("PLAYER1_PAUSE_COUNT:" + player1PauseCount);
+            writer.println("PLAYER2_PAUSE_COUNT:" + player2PauseCount);
+
+            writer.close();
+        } catch (IOException e) {
+            // Silently fail
         }
     }
 
@@ -592,4 +874,37 @@ public class TicTacToe_NxN {
         String response = scanner.nextLine().trim().toLowerCase();
         return response.equals("yes") || response.equals("y");
     }
+
+    /**
+     * NEW CLASS: SavedGameData - Stores all game state information
+     * Used for loading and restoring saved games
+     */
+    private class SavedGameData {
+        // Game configuration
+        int gridSize = 3;
+        String player1Name = "Player 1";
+        String player2Name = "Player 2";
+        String currentPlayer = "X";
+
+        // Board state
+        String[][] board;
+
+        // Game state
+        boolean gameActive = false;
+        boolean gameWon = false;
+
+        // Timer state
+        long elapsedTime = 0;
+
+        // Pause counts
+        int player1PauseCount = 0;
+        int player2PauseCount = 0;
+
+        // Statistics
+        int player1Wins = 0;
+        int player2Wins = 0;
+        int draws = 0;
+        int totalGames = 0;
+    }
+
 }

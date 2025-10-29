@@ -3,6 +3,8 @@
 ## Overview
 Tic Tac Toe is a classic game that can be played by two players. This project allows players to customize the board size, making it possible to play on an n x n grid.
 
+## Link: https://claude.ai/public/artifacts/bb3541d4-f262-4f22-a256-8b3c0a0b20bc
+
 ## Features
 - Customizable board size (n x n)
 - Player turns alternating between X and O
@@ -306,6 +308,32 @@ main() → startGameLoop() → Repeat until player quits
 - Controls the main game loop
 
 ---
+
+#### 📝 **How the saveGameState Works :**
+
+#### **Scenario 1: Fresh Start (No Save File)**
+```
+Program starts → No save file found → Ask player names → Play game → Save after each move
+```
+
+#### **Scenario 2: Resume Interrupted Game**
+```
+Program starts → Save file found → Game was active → Ask "Resume?" 
+→ YES → Load board + timer + names → Continue playing from exact position
+```
+
+#### **Scenario 3: Load Statistics from Finished Game**
+```
+Program starts → Save file found → Game was finished 
+→ Load statistics → Show stats → Start new game → Add to existing statistics
+```
+
+#### **Scenario 4: Multiple Sessions**
+```
+Session 1: Player1: 2 wins, Player2: 1 win → Exit (saved)
+Session 2: Load stats (2-1) → Play 3 more games → Player1: +1, Player2: +2
+Final Stats: Player1: 3 wins, Player2: 3 wins ✅
+```
 
 ## **🔄 Complete Flow Summary:**
 ```
