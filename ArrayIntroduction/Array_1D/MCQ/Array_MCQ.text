@@ -1,0 +1,34 @@
+1. How do you declare an integer array in java?
+
+a) int[] arr      b) int arr[]
+c) Both a and b   d) array<int> arr
+
+Ans: c
+
+2. Which of the following creates an array of 5 integer?
+
+a) int arr[] = new int[5]  b) int arr[5]
+c) int arr() = 5           d) int[5] arr
+
+Ans: a
+
+3. How do you an access of third element of an array?
+
+a) arr(3)  b) arr[3]
+c) arr[2]  d) arr{3}
+
+Ans: c
+
+4. How many rows and column are in a 2D array. int arr[] = new int[3][4];
+
+a) 3 rows, 4 columns  b) 4 rows 3 columns
+c) 3 elements         d) 7 elements
+
+Ans: a
+
+5. Which of these best defines the multi dimensional array in java
+
+a) int arr[][]    b) int[] arr[]
+c) Both a and b   d) int arr(2)(3)
+
+Ans: c
