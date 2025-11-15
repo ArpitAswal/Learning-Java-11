@@ -17,8 +17,10 @@ Explanation: The largest element of the array is 10 there is no second largest e
 /*
 Solution1: Using Sorting
 The idea is to sort the array in non-decreasing order. Now, we know that the largest element will be at index n - 1. So, starting from index (n - 2), traverse the remaining array in reverse order.
+
 Solution2: [Better Approach] Two Pass Search
 The approach is to traverse the array twice. In the first traversal, find the maximum element. In the second traversal, find the maximum element ignoring the one we found in the first traversal.
+
 Solution3: [Expected Approach] One Pass Search
 The idea is to keep track of the largest and second largest element while traversing the array. Initialize largest and secondLargest with -1. Now, for any index i,
 
