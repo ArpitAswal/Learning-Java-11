@@ -320,6 +320,8 @@ public class Main {
 ```
 Integer Arrays on comparison: 1
 ```
+<img width="1024" height="1536" alt="0df3bfde-b6f1-4cac-98ef-35814819e783" src="https://github.com/user-attachments/assets/00a7d802-d13c-44be-869c-6e4418422faf" />
+
 ## Final Arrays in Java
 
 *In Java, the final keyword makes a variable's reference constant, not its contents. When an array is declared as final, you cannot reassign it to point to a new array. However, you can still modify the elements within the array.*
@@ -418,5 +420,8 @@ public class FinalArray {
 ```
 
 **What we can and cannot do with final arrays and objects in Java:**
+
+<img width="1536" height="1024" alt="e52d3678-7706-4764-87ad-c2ebdc616bea" src="https://github.com/user-attachments/assets/6b67cba3-bac7-4c07-8a71-085d8fe89305" />
+
 
 
