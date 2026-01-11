@@ -14,7 +14,7 @@ Output: No
 Explanation: The given string does not contain all the letters from a to z (ignoring case).
  */
 // Java program for the above approach
-class Pangram {
+class PangramString {
 
     static int size = 26;
 
